@@ -1,0 +1,830 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <link href='https://fonts.googleapis.com/css?family=Baloo Bhai 2' rel='stylesheet'>
+  
+  <style>
+
+    body {
+      font-family: 'Baloo Bhai 2';
+    }
+    h1 {
+        text-align: center;
+        color: black;
+        font-size: 40px;
+        margin-bottom:-16px;
+      } 
+    p#subtitle {
+        text-align: center;
+        color: black;
+        font-size: 15px;
+      }
+    #YAxisLabel{
+      text-anchor: middle;
+      transform: rotate(0);
+      font-size: 20px;
+      fill: rgb(77, 75, 75);
+      }
+    line#gridline {
+        stroke: rgb(111, 112, 112);
+        stroke: rgb(111, 112, 112);
+        stroke-width: 3;
+        stroke-dasharray: 5 3;
+        opacity: 0.6;
+      }
+    line#rating_line {
+        stroke: rgb(153, 81, 93);
+        stroke-width: 3;
+        stroke-dasharray: 5 3;
+        opacity: 0.6;
+      }
+    line#little_gridline {
+        stroke: rgb(9, 10, 10);
+        stroke-width: 3;
+        opacity: 0.8;
+      }
+    text#rating_text {
+        font-size: 9px;
+        fill: rgb(153, 81, 93);
+      }
+    .tooltip {
+        background-color: black;
+        border: "solid";
+        border-width: 2px;
+        border-color: white;
+        border: 2px;
+        border-radius: 120px;
+        text-align: left; /*center*/
+        color:rgb(170, 170, 170); /* rgb(112, 117, 125);*/
+      }
+    .tooltip2 {
+        background-color: black;
+        border: "solid";
+        border-width: 2px;
+        border-color: white;
+        border: 2px;
+        text-align: left;
+        color: white;
+      }
+    .tooltip3 {
+        background-color: black;
+        border: "solid";
+        border-width: 2px;
+        border-color: white;
+        border: 2px;
+        text-align: left;
+        color: white;
+      }
+    .area {
+        fill: lightsteelblue;
+        stroke-width:  0;
+        opacity: 0.3;
+      }
+    .dot{
+        cursor: pointer;
+      }
+    .with-d3 {
+        text-align: center;
+        left: 50%;
+      }
+    .select2-container--default .select2-results>.select2-results__options{
+        max-height: 350px !important;
+      }
+
+   </style> 
+  
+  <title>IMDB Ratings Visualization</title>
+</head>
+
+<body>
+  <h1>IMDB Ratings of TV Shows</h1>
+  <p id = 'subtitle'>Select your show from the dropdown!</p>
+
+  <div class="with-d3">
+    <select id="selectButton"></select>
+  </div>
+  <div id="my_dataviz"></div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>         
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/js/select2.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.7.0/d3.js"></script>
+    <script charset="UTF-8">
+
+
+
+      var w = window.innerWidth;
+      var h = window.innerHeight - 150;
+
+      const dotsize = 5;
+      const bigger_dotsize = 8;
+
+      const redline_margin_left = 40;
+      const redline_margin_right = 96;
+
+      // select the svg container first
+      const svg = d3.select("#my_dataviz")
+        .append('svg')
+          .attr('width', w)
+          .attr('height', h);
+
+      // create margins & dimension
+      const margin = {top: 20, right: 60, bottom: 80, left: 120};
+      const graphWidth = w - margin.left - margin.right;
+      const graphHeight = h - margin.top - margin.bottom;
+
+      const graphconst = graphWidth /13
+
+      const graph = svg.append('g')
+        .attr('width', graphWidth)
+        .attr('height', graphHeight)
+        .attr('transform', `translate(${margin.left}, ${margin.top})`);
+
+      const xAxisGroup = graph.append('g')
+        .attr('transform', `translate(0, ${graphHeight + margin.top} )`);
+      const yAxisGroup = graph.append('g');
+
+      const transition_out = 300;
+
+      var mouseover_counter = true
+
+
+
+      //D3 Function
+      d3.csv('https://raw.githubusercontent.com/ujjawalmadan/IMDb-visualization/master/Final.csv').then(data => {
+
+        var allGroup = d3.map(data, function(d){return(d.Name)}).keys()
+        
+        // Select Button
+        var button = d3.select("#selectButton")
+          //.append('select')
+          .attr('class', 'select')
+          .selectAll('option')
+          .data(allGroup)
+          .enter()
+          .append('option')
+          .attr("value", (d) => d)
+          .text((d) => d);
+
+        initialData = data.filter(function(d){return d.Name==allGroup[0]})
+
+        // AXES
+        var x = d3.scalePoint()
+        .domain(initialData.map(item => item.index))
+        .range([margin.left, graphWidth + margin.left]);
+
+        var counter = Math.ceil((initialData.map(item => item.index)).length / (50*(graphWidth/1356))  )
+        xaxis = d3.axisBottom(x) 
+        .tickValues(x.domain().filter((d, i) => i % counter === 0));
+
+        xAxis = svg.append("g")
+        .attr("transform", `translate(0, ${margin.top + graphHeight})`)
+        .call(xaxis)
+
+        var y = d3.scaleLinear()
+          .domain([0, 10])
+          .range([graphHeight + margin.top, margin.top]);
+
+        yAxis = svg.append("g")
+          .attr("transform", `translate(${margin.left}, 0)`)
+          .call(d3.axisLeft(y));
+
+        // Lowest Rating and Highest Rating of Show Lines
+        var minvalue = d3.min(initialData, d => d.Rating);
+        var highvalue = d3.max(initialData, d => d.Rating);
+
+          var low = svg
+          .append('line')
+          .attr('id', 'rating_line')
+          .attr('x1', margin.left - redline_margin_left)
+          .attr('y1', y(minvalue) ) //function(d) { return y(d.Rating) })
+          .attr('x2', margin.left - redline_margin_right)  //function(d) { return x(d.index) }
+          .attr('y2', y(minvalue)) //function(d) { return y(d.Rating) })
+
+          svg.append("text")
+          .attr('id', 'rating_text')
+          .attr("text-anchor", "middle")
+          .attr("y", y(minvalue) + 12)
+          .attr("x", margin.left/2 - 7)
+          .text("Lowest Rating")
+
+          var high = svg
+          .append('line')
+          .attr('id', 'rating_line')
+          .attr('x1', margin.left - redline_margin_left)
+          .attr('y1', y(highvalue) ) //function(d) { return y(d.Rating) })
+          .attr('x2', margin.left - redline_margin_right)  //function(d) { return x(d.index) }
+          .attr('y2', y(highvalue)) //function(d) { return y(d.Rating) })
+
+          svg.append("text")
+          .attr('id', 'rating_text')
+          .attr("text-anchor", "middle")
+          .attr("y", y(highvalue) - 7)
+          .attr("x", margin.left/2 - 7)
+          .text("Highest Rating")
+
+          // Y Axis Label Append, adjusts based on where lowest ratings line is:
+          var YAxisLabel = svg.append("text")
+          .attr('id', 'YAxisLabel')
+          .text("Rating")
+
+            if (minvalue < 3 || minvalue > 5 ){ 
+            YAxisLabel
+            .attr("y", graphHeight/2 + margin.top + 40)
+            .attr("x", margin.left/2 - 10 )
+            } else {
+              YAxisLabel
+              .attr("y", y(minvalue) + graphHeight*0.2 + 'px')
+              .attr("x", margin.left/2 - 10 )
+            }
+
+          // X Axis Label Append
+          svg.append("text")
+            .attr("text-anchor", "middle")
+            .attr("x", graphWidth/2 + margin.left)
+            .attr("y", graphHeight + margin.top +50)
+            .text("Season Number - Episode Number")
+            .attr('font-size', "20px")
+            .attr('fill',"rgb(77, 75, 75)");
+
+        // Create a Tooltip
+          var Tooltip = d3.select("#my_dataviz")
+            .append("div")
+            .style("opacity", 0)
+            .attr("class", "tooltip");
+
+          var Tooltip2 = d3.select("#my_dataviz")
+            .append("div")
+            .style("opacity", 0)
+            .attr("class", "tooltip2");
+
+          var Tooltip3 = d3.select("#my_dataviz")
+            .append("div")
+            .style("opacity", 0)
+            .attr("class", "tooltip3");
+
+        // ToolTip Functions
+            var mouseover = function(d) {
+
+            //Setting the variables for adjusting radius and padding of our toolbars
+            var radi1 = (graphWidth+graphHeight)*0.037;
+            var radi2 = (graphWidth+graphHeight)*0.03;
+        
+            var left = 15+ graphWidth*graphHeight*0.000007;
+            var right = 0.7*radi1;
+            var left1 = 8 + graphWidth*graphHeight*0.000004;
+            var right1 = 0.7*radi2;
+
+            
+            //Changing the dot color and size when hovering over
+            d3.select(this)
+            .style("stroke", "black")
+            .style("opacity", 1) 
+            .transition()
+            .duration(50)
+            .attr("r", bigger_dotsize)
+
+            //Creating the gridlines when hovering over
+            if (event.pageX > 144){
+
+              var gridlinex = svg
+              .append('line')
+              .attr('id', 'gridline')
+              .attr('x1', margin.left + 12)
+              .attr('y1', y(d.Rating))  //function(d) { return y(d.Rating) })
+              .attr('x2', x(d.index) - bigger_dotsize - 2)  //function(d) { return x(d.index) }
+              .attr('y2', y(d.Rating)) //function(d) { return y(d.Rating) })
+            
+              var gridlinex2 = svg
+              .append('line')
+              .attr('id', 'little_gridline')
+              .attr('x1', margin.left)
+              .attr('y1', y(d.Rating))  //function(d) { return y(d.Rating) })
+              .attr('x2', margin.left + 12)  //function(d) { return x(d.index) }
+              .attr('y2', y(d.Rating)) //function(d) { return y(d.Rating) })
+
+              var gridliney = svg
+              //.data(initialData)
+              .append('line')
+              .attr('id', 'gridline')
+              .attr('x1', x(d.index))
+              .attr('y1', y(d.Rating) + bigger_dotsize + 2) //function(d) { return y(d.Rating) })
+              .attr('x2', x(d.index))  //function(d) { return x(d.index) }
+              .attr('y2', graphHeight + margin.top) //function(d) { return y(d.Rating) })
+              
+            }
+
+            //Assigning text to tooltips
+            Tooltip
+            .html(function() {
+              return  "<strong> <span style='color:white'>" + d.Title + "</span> </strong>" + '<br>' + 
+                      "Season <strong> <span style='color:white'>" + d.Season + "</span> </strong>" + 'Episode <strong><span style = "color:white">' + d.Episode + '</span></strong>' + '<br>' + '<br>' + 
+                      "Running Time: <strong><span style='color:white'>" + d.RunTime + '</strong></span>' + '<br>' + 
+                      "Episode Aired: <strong><span style='color:white'>" + d.Episode_Aired + "</span></strong>" + '<br>' + 
+                      'Rating: <strong><span style="color:white">' + d.Rating + "/10 </span> </strong>" + 'of <strong><span style = "color:white">' + d.Total_Ratings + '</span></strong>' + ' total ratings';
+            })
+
+            Tooltip2
+            .html(function() {
+              return d.Plot;
+            })
+
+            // Different Layout of Toolbars Depending on Height
+            if (h < 800){
+
+              // Tooltip3 which says click on the dot to see the IMDb page
+              if (mouseover_counter == true){
+              Tooltip3
+              .html('Click on dot to see the IMDb page!')
+              .style("top", d3.event.pageY - 0.12*graphHeight + 'px')
+              .style('padding', left1 + 'px ' + right1 + 'px ' + left1 + 'px ' + right1 + 'px ')
+              .style('font-size', Math.min(((h - d3.event.pageY)*0.04),  graphconst*0.3) + 'px')
+              .style('border-radius', radi2/2 + 'px')
+              .style('position', 'absolute')
+              .style('z-index', '10')
+              .transition()
+              .duration(400)
+              .style("opacity", 1);
+
+              const tooltip3width = ($(".tooltip3").width())
+              
+              if (d3.event.pageX < w - tooltip3width){
+                Tooltip3
+              .style("left", d3.event.pageX + 'px');
+              } else {
+                Tooltip3
+                .style('transform', 'translate(-103%, 0)')
+                .style("left", d3.event.pageX + 'px')
+                .style('width', tooltip3width + 'px'); 
+              }
+
+            }
+
+            Tooltip3
+            .style("left", d3.event.pageX + 'px');
+
+              //First Layout
+              //Modifying the tooltips based on location of rating
+              if (d.Rating >= 5.5){ 
+                Tooltip
+                .style("left", margin.left + 7*graphconst + 'px')
+                .style("top", d3.event.pageY + 0.07*(d.Rating/10)*graphHeight + 'px')
+                .style('padding', left + 'px ' + right + 'px ' + left + 'px ' + right + 'px ')
+                .style('font-size',  Math.min(((h - d3.event.pageY)*0.05),  graphconst*0.35)  + 'px')
+                .style('max-width', 4.5*graphconst + 'px')
+                .style('border-radius', radi1 + 'px')
+                .style('position', 'absolute');
+
+                Tooltip2
+                .style("left", margin.left + 7*graphconst + 'px')
+                .style('top', d3.event.pageY + 0.07*(d.Rating/10)*graphHeight + 0.04*graphHeight + 2*left + ($(".tooltip").height()) + 'px')
+                .style('padding', left1 + 'px ' + right1 + 'px ' + left1 + 'px ' + right1 + 'px ')
+                .style('width', 4.8*graphconst + 'px')
+                .style('font-size', Math.min(((h - d3.event.pageY)*0.04),  graphconst*0.3) + 'px')
+                .style('border-radius', radi2 + 'px')
+                .style('position', 'absolute');
+              }
+
+              else{
+
+                Tooltip
+                .style("left", margin.left + 7*graphconst + 'px')
+                .style("top", margin.top + 126 +'px')
+                .style('padding', left + 'px ' + right + 'px ' + left + 'px ' + right + 'px ')
+                .style('font-size',  Math.min(((10-d.Rating)*graphHeight*0.005),  graphconst*0.35)  + 'px')
+                .style('max-width', 4.5*graphconst + 'px')
+                .style('border-radius', radi1 + 'px')
+                .style('position', 'absolute');
+
+                Tooltip2
+                .style("left", margin.left + 7*graphconst + 'px')
+                .style('top', margin.top + 126 + 0.07*(d.Rating/10)*graphHeight  + ($(".tooltip").height()) + 2*left + 'px')
+                .style('width', 4.8*graphconst + 'px')
+                .style('font-size', Math.min(((10-d.Rating)*graphHeight*0.004),  graphconst*0.25)+ 'px')
+                .style('padding', left1 + 'px ' + right1 + 'px ' + left1 + 'px ' + right1 + 'px ')
+                .style('border-radius', radi2 + 'px')
+                .style('position', 'absolute');
+
+              }
+
+              //Appending the Image
+              var episode = svg
+              .append('svg:image')
+              .attr('id', 'episode_image')
+              .attr('xlink:href', d.Actual_Link)
+              .attr('width', 5*graphconst + 'px')
+              .attr('x', margin.left + graphconst + 'px')
+              .style("opacity", 0)
+              .transition()
+              .duration(400)
+              .style("opacity", 1);
+        
+
+              if (d.Rating >= 5.5) {
+                episode.attr('height', margin.top + graphHeight - d3.event.pageY + 110 - 0.1*(graphHeight) + 'px')
+                .attr('y', d3.event.pageY -126 /*previous number is offsseting header*/ + 0.07*graphHeight + 'px')  }
+                else {
+                episode.attr('height', d3.event.pageY - margin.top - 126 - 0.07*graphHeight + 'px')
+                .attr('y', margin.top + 'px')
+              
+            }
+          } 
+          
+          
+          
+          
+          //Second Layout if the browser's height is quite large
+          else{
+
+            //Appending the image
+            var episode = svg
+            .append('svg:image')
+            .attr('id', 'episode_image')
+            .attr('xlink:href', d.Actual_Link)
+            .attr('width', 5*graphconst + 'px')
+            .style("opacity", 0)
+            .transition()
+            .duration(400)
+            .style("opacity", 1)
+            .attr('height', 0.45*graphHeight + 'px')
+            .attr('y', margin.top + 'px')  
+
+
+            // Modifying image location       
+            if (d3.event.pageX - margin.left < graphWidth/2){
+              episode
+              .attr('x', d3.event.pageX + 0.5*graphconst + 'px')
+
+            } else{
+              episode
+              .attr('x', d3.event.pageX - 6*graphconst + 'px' )  }
+            
+            //Modifying tooltips based on location
+            if (d3.event.pageX - margin.left < graphWidth/2){ 
+
+                Tooltip
+                .style('top', '50%')
+                .style('left', d3.event.pageX + ($("#episode_image").width())/2 + 0.6*graphconst +  'px')
+                .style('transform', 'translate(-50%, 0)')
+                .style("top",  0.48*graphHeight + margin.top + 126 + 'px')
+                .style('padding', left + 'px ' + right + 'px ')
+                .style('font-size',  Math.min(graphHeight*0.026,  graphconst*0.3)  + 'px')
+                .style('max-width', 5*graphconst + 'px')
+                .style('border-radius', radi1 + 'px')
+                .style('position', 'absolute');
+
+                Tooltip2
+                .style('text-align', 'center')
+                .style('top', '50%')
+                .style('left', d3.event.pageX + ($("#episode_image").width())/2 + 0.6*graphconst +  'px')
+                .style('transform', 'translate(-50%, 0%)')
+                .style("top", ($(".tooltip").height()) + 2*left + 0.5*graphHeight + margin.top + 126 + 'px')
+                .style('width', 4.8*graphconst + 'px')
+                .style('padding', left1 + 'px ' + right1 + 'px ')
+                .style('font-size',  Math.min(graphHeight*0.02,  graphconst*0.3)  + 'px')
+                .style('border-radius', radi2 +'px')
+                .style('position', 'absolute');
+
+                // Tooltip3 which says click on the dot to see the IMDb page
+                if (mouseover_counter == true){
+                  Tooltip3
+                  .html('Click on dot to see the IMDb page!')
+                  .style('transform', 'translate(-50%, 0)')
+                  .style("left", d3.event.pageX + ($("#episode_image").width())/2 + 0.6*graphconst + 'px')
+                  .style("top", 60 + 'px')
+                  .style('padding', left1 + 'px ' + right1 + 'px ' + left1 + 'px ' + right1 + 'px ')
+                  .style('font-size', Math.min(graphHeight*0.02,  graphconst*0.3) + 'px')
+                  .style('border-radius', radi2/2 + 'px')
+                  .style('position', 'absolute')
+                  .style('z-index', '10')
+                  .transition()
+                  .duration(400)
+                  .style("opacity", 1);
+                }
+              }
+
+          else{
+
+              Tooltip
+              .style('top', '50%')
+              .style('left', d3.event.pageX - ($("#episode_image").width())/2 - 0.9*graphconst +  'px')
+              .style('transform', 'translate(-50%, 0%)')
+              .style("top",  0.48*graphHeight + margin.top + 126 + 'px')
+              .style('padding', left + 'px ' + right + 'px ')
+              .style('font-size',  Math.min(graphHeight*0.026,  graphconst*0.3)  + 'px')
+              .style('max-width', 5*graphconst + 'px')
+              .style('border-radius', radi1 + 'px')
+              .style('position', 'absolute');
+
+
+              Tooltip2
+              .style('text-align', 'center')
+              .style('top', '50%')
+              .style('left', d3.event.pageX - ($("#episode_image").width())/2 - 0.9*graphconst +  'px')
+              .style('transform', 'translate(-50%, 0%)')
+              .style("top", ($(".tooltip").height()) + 2*left + 0.5*graphHeight + margin.top + 126 + 'px')
+              .style('padding', left1 + 'px ' + right1 + 'px ')
+              .style('width', 4.8*graphconst + 'px')
+              .style('font-size',  Math.min(graphHeight*0.02,  graphconst*0.3)  + 'px')
+              .style('border-radius', radi2 + 'px')
+              .style('position', 'absolute');
+
+              // Tooltip3 which says click on the dot to see the IMDb page
+              if (mouseover_counter == true){
+                Tooltip3
+                .html('Click on dot to see the IMDb page!')
+                .style("top", 60 + 'px')
+                .style('transform', 'translate(-50%, 0)')
+                .style('left', d3.event.pageX - ($("#episode_image").width())/2 - 0.9*graphconst +  'px')
+                .style('padding', left1 + 'px ' + right1 + 'px ' + left1 + 'px ' + right1 + 'px ')
+                .style('font-size', Math.min(graphHeight*0.02,  graphconst*0.3) + 'px')
+                .style('border-radius', radi2/2 + 'px')
+                .style('position', 'absolute')
+                .style('z-index', '10')
+                .transition()
+                .duration(400)
+                .style("opacity", 1);
+              }
+
+            }
+
+          }
+
+          
+          //Transition Tooltips
+          Tooltip
+          .style('z-index', '10')
+          .transition()
+          .duration(400)
+          .style("opacity", 1);
+
+          Tooltip2
+          .style('z-index', '10')
+          .transition()
+          .duration(400)
+          .style("opacity", 1);
+
+      
+        };
+
+          //Just in case we want to add something later. That's why it's empty
+          var mousemove = function(d) {};
+          
+          //What happens when our cursor leaves the data point
+          var mouseleave = function(d) {
+            svg.selectAll('#gridline').remove()
+            svg.selectAll('#little_gridline').remove()
+
+            svg.selectAll('#episode_image')
+            .transition()
+            .duration(transition_out)
+            .style("opacity", 0)
+            .remove()
+          
+          //Transition tooltips for layout 1
+          if (h < 800){
+
+            Tooltip
+            .transition()
+            .duration(transition_out)
+            .style('z-index', '-10')
+            .style("opacity", 0)
+
+            Tooltip2
+            .transition()
+            .duration(transition_out)
+            .style('z-index', '-10')
+            .style("opacity", 0);
+
+          }
+
+          //Transition tooltips for layout 2
+          else {
+            
+            Tooltip
+            .transition()
+            .duration(transition_out)
+            .style("opacity", 0)
+          
+            Tooltip2
+            .transition()
+            .duration(transition_out)
+            .style("opacity", 0)
+          
+            }
+
+          if (mouseover_counter == true){
+            Tooltip3
+              .transition()
+              .duration(transition_out)
+              .style('z-index', '-15')
+              .style("opacity", 0);
+          }
+          mouseover_counter = false
+
+          //Transitioning dot back to normal when leaving moving away
+          d3.select(this)
+          .style("stroke", "white")
+          .style("opacity", 1)
+          .transition()
+          .duration(50)
+          .attr("r", dotsize);
+
+          };
+
+
+
+
+        // Defining area so that area under line graph is lightly colored.
+        var area = d3.area()
+          .x(function(d) { return x(d.index)})
+          .y0(graphHeight + margin.top)
+          .y1(function(d) {return y(d.Rating)})
+
+        svg.append("path")
+          .data([initialData])
+          .attr("class", "area")
+          .attr("d", area);
+
+        // Defining the line
+        var line = svg.append('g')
+        .append("path")
+        .datum(initialData)
+        .attr("fill", "none")
+        .attr("stroke", "steelblue")
+        .attr("stroke-width", 3)
+        .attr("d", d3.line()
+          .x(function(d) { return x(d.index)})
+          .y(function(d) { return y(d.Rating)})
+          );
+
+        // Defining the Dots   
+        var dot = svg
+          .selectAll('circle')
+          .data(initialData)
+          .enter()
+          .append('circle')
+          .attr("cx", function(d) { return x(d.index) })
+          .attr("cy", function(d) { return y(d.Rating) })
+          .attr("r", dotsize)
+          .style('cursor', 'pointer')
+          .style("fill", "#69b3a2")
+          .style("stroke", "white")
+          .attr("fill", "white")
+          .on("click", function(d){
+              window.open(d.Link, '_blank');
+            })
+          .on("mouseover", mouseover)
+          .on("mousemove", mousemove)
+          .on("mouseleave", mouseleave);
+
+        
+        //Update Function if show is changed
+        function update(selectedGroup) {
+
+          //Removed graphics for previous show
+          svg.selectAll('#rating_line').remove()
+          svg.selectAll('.area').remove()
+          svg.selectAll('#rating_text').remove()
+          svg.selectAll("circle").remove()
+
+                // Create index data with the selection?
+              var dataFilter = data.filter(function(d){return d.Name==selectedGroup});
+          
+
+              // X Axis Change
+              x = d3.scalePoint()
+                .domain(dataFilter.map(item => item.index))
+                .range([ margin.left, graphWidth + margin.left]);
+
+              var counter = Math.ceil((dataFilter.map(item => item.index)).length / (50*(graphWidth/1356))  )
+              xaxis = d3.axisBottom(x) 
+              .tickValues(x.domain().filter((d, i) => i % counter === 0));
+
+              xAxis.attr("transform", `translate(0, ${margin.top + graphHeight})`).transition().duration(1500).call(xaxis)
+
+              
+              // Area
+              area = d3.area()
+              .x(function(d) { return x(d.index)})
+              .y0(graphHeight + margin.top)
+              .y1(function(d) {return y(d.Rating)})
+
+              svg.append("path")
+              .data([dataFilter])
+              .attr("class", "area")
+              .attr("d", area);
+
+              // Line
+                line
+                .datum(dataFilter)
+                /* This is where you would add the transition hypothetically */
+                .attr("d", d3.line()
+                .x(function(d) { return x(d.index) })
+                .y(function(d) { return y(d.Rating) }) );
+                      
+                      //.transition()
+                      //.duration(1500)
+              // Dot 
+                dot = svg
+                .selectAll('circle')
+                .data(dataFilter)
+                .enter() 
+                .append('circle')
+                /* This is where you would add the transition bit */
+
+                        
+                dot.transition()
+                .duration(1500)
+                .delay(function(d,i){return(i*2)})
+                .attr("cx", function(d) { return x(d.index) })
+                .attr("cy", function(d) { return y(d.Rating) })
+                .attr("r", dotsize)
+                .style("fill", "#69b3a2")
+                .style("stroke", "white")
+                .attr("fill", "white");
+
+
+                setTimeout(function(){
+                  dot
+                  .style('cursor', 'pointer')
+                  .on("mouseover", mouseover)
+                  .on("mousemove", mousemove)
+                  .on("mouseleave", mouseleave)
+                  .on("click", function(d){
+                    window.open(d.Link, '_blank');
+                  });
+                }, 1500);
+
+
+
+                // Changing low and high rating lines
+                minvalue = d3.min(dataFilter, d => d.Rating);
+                highvalue = d3.max(dataFilter, d => d.Rating);
+
+                low = svg
+                  .append('line')
+                  .attr('id', 'rating_line')
+                  .attr('x1', margin.left - redline_margin_left)
+                  .attr('y1', y(minvalue) ) //function(d) { return y(d.Rating) })
+                  .attr('x2', margin.left - redline_margin_right)  //function(d) { return x(d.index) }
+                  .attr('y2', y(minvalue)) //function(d) { return y(d.Rating) })
+
+                  svg.append("text")
+                  .attr('id', 'rating_text')
+                  .attr("text-anchor", "middle")
+                  .attr("y", y(minvalue) + 12)
+                  .attr("x", margin.left/2 - 7)
+                  .text("Lowest Rating")
+
+                high = svg
+                  .append('line')
+                  .attr('id', 'rating_line')
+                  .attr('x1', margin.left - redline_margin_left)
+                  .attr('y1', y(highvalue) ) //function(d) { return y(d.Rating) })
+                  .attr('x2', margin.left  - redline_margin_right)  //function(d) { return x(d.index) }
+                  .attr('y2', y(highvalue)) //function(d) { return y(d.Rating) })
+
+                  svg.append("text")
+                  .attr('id', 'rating_text')
+                  .attr("text-anchor", "middle")
+                  .attr("y", y(highvalue) - 7)
+                  .attr("x", margin.left/2 - 7)
+                  .text("Highest Rating")
+
+                  // Y axis label:
+                  svg.selectAll("#YAxisLabel").remove()  
+                  YAxisLabel = svg.append("text")
+                    .attr('id', 'YAxisLabel')
+                    .text("Rating")
+                
+                  if (minvalue < 3 || minvalue > 5 ){ 
+                    YAxisLabel
+                    .attr("y", graphHeight/2 + margin.top + 40)
+                    .attr("x", margin.left/2 - 10 )
+
+                  } else {
+                    YAxisLabel
+                    .attr("y", y(minvalue) + graphHeight*0.2 + 'px')
+                    .attr("x", margin.left/2 - 10 );
+                  }
+
+          };
+
+          $(document).ready(function () {
+            $("select").select2()
+            .on("select2:select", function (e) {
+              var selected = e.params.data.text;
+              //var selectedOption = d3.select(this).property("value")
+              update(selected)
+            });
+
+
+          });  
+      });
+    </script>
+
+</body>
+</html>
