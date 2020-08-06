@@ -1,5 +1,5 @@
 # IMDb-Visualization
-                            <h6>Description</h6>
+<h6>Description</h6>
                             <p>This visualization allows one to view a show of their liking and visualize the episode ratings in chronological order. 
                                 If one hovers over an episode, then the episode information as well as a screenshot from the episode will be shown.
                                 If one clicks on the episode, they will be redirected to the IMDb page directly. I recommend you explore the live demo (link at the bottom of the page) and see the ratings of your favourite shows! 
