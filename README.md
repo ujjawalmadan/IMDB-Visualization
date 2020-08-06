@@ -1,5 +1,4 @@
 # IMDb-Visualization
-<h2><a href="https://imdb-d3visualization.herokuapp.com/index.html" target = '_blank'>IMDb Ratings Visualization - d3.js</a></h2>
                             <h6>Description</h6>
                             <p>This visualization allows one to view a show of their liking and visualize the episode ratings in chronological order. 
                                 If one hovers over an episode, then the episode information as well as a screenshot from the episode will be shown.
